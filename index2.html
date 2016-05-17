@@ -1,149 +1,163 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
 <style>
-body {
+    body {
 
-}
-.counties {
-  fill: none;
-}
-
-.states {
-  fill: none;
-  stroke: #fff;
-  stroke-linejoin: round;
-}
-
+    }
+    
+    .counties {
+        fill: none;
+    }
+    
+    .states {
+        fill: none;
+        stroke: #fff;
+        stroke-linejoin: round;
+    }
 </style>
 <body>
-<script src="//d3js.org/d3.v3.min.js"></script>
-<script src="//d3js.org/queue.v1.min.js"></script>
-<script src="//d3js.org/topojson.v1.min.js"></script>
-<script>
+    <script src="//d3js.org/d3.v3.min.js"></script>
+    <script src="//d3js.org/queue.v1.min.js"></script>
+    <script src="//d3js.org/topojson.v1.min.js"></script>
+    <script>
+        var width = 400,
+            height = 800;
 
-var width = 400,
-    height = 600;
-
-var color = d3.scale.threshold()
-    .domain([0.0, 0.10, 0.12, 0.14, 0.16,0.18])
-    .range(["#f2f0f7", "#dadaeb", "#bcbddc", "#9e9ac8", "#756bb1", "#54278f"]);
-
-
-    // A position encoding for the key only.
-var x = d3.scale.linear()
-    .domain([0, 5100])
-    .range([0, 480]);
-
-var xAxis = d3.svg.axis()
-    .scale(x)
-    .orient("bottom")
-    .tickSize(13)
-    .tickValues(color.domain())
-    .tickFormat(function(d) { return d >= 100 ? formatNumber(d) : null; });
+        var color = d3.scale.threshold()
+            .domain([0.0, 0.10, 0.12, 0.14, 0.16, 0.18])
+            .range(["#f2f0f7", "#dadaeb", "#bcbddc", "#9e9ac8", "#756bb1", "#54278f"]);
 
 
-var projection = d3.geo.albersUsa()
-    .scale(2500)
-    .translate([960, 340]);
+        // A position encoding for the key only.
+        var x = d3.scale.linear()
+            .domain([0, 5100])
+            .range([0, 480]);
 
-var path = d3.geo.path()
-    .projection(projection);
-
-var svg = d3.select("body").append("svg")
-    .attr("width", width)
-    .attr("height", height);
-
-    var tooltip = d3.select("body")
-  .append("div")
-  .style("position", "absolute")
-  .style("background-color","rgba(255,255,255,0.8)")
-  .style("z-index", "10")
-  .style("visibility", "hidden")
-  .text("a simple tooltip");
-
-  var g = svg.append("g")
-    .attr("class", "key")
-    .attr("transform", "translate(440,40)");
-
-g.selectAll("rect")
-    .data(color.range().map(function(d, i) {
-      return {
-        x0: i ? x(color.domain()[i - 1]) : x.range()[0],
-        x1: i < color.domain().length ? x(color.domain()[i]) : x.range()[1],
-        z: d
-      };
-    }))
-  .enter().append("rect")
-    .attr("height", 8)
-    .attr("x", function(d) { return d.x0; })
-    .style("z-index", "10")
-    .attr("width", function(d) { return d.x1 - d.x0; })
-    .style("fill", function(d) { return d.z; });
-
-g.call(xAxis).append("text")
-    .attr("class", "caption")
-    .attr("y", -6)
-    .style("z-index", "10")
-    .text("Population per square mile");
-
-queue()
-    .defer(d3.json, "us.json")
-    .defer(d3.tsv, "unemployment.tsv")
-    .await(ready);
-
-function ready(error, us, unemployment) {
-  if (error) throw error;
-
-  var rateById = {};
-
-  unemployment.forEach(function(d) { 
-    rateById[d.id] = {
-      rate: +d.rate,
-      county: d.county
-    } 
-    });
-
-  svg.append("g")
-      .attr("class", "counties")
-      .selectAll("path")
-      .data(topojson.feature(us, us.objects.counties).features)
-      .enter().append("path")
-      .attr("d", path)
-      .attr("data-hover",function(d) { return rateById[d.id] && rateById[d.id].county; })
-      .style("fill", function(d) { return color(rateById[d.id] && rateById[d.id].rate); })
-      .on("mouseover",function(d) { 
-          return mapMouseOver(rateById[d.id]); 
-        })
-      .on("mousemove",function(d) { 
-          return mapMouseMove(rateById[d.id]); 
-        })
-      .on("mouseout",function(d) { 
-          return mapMouseOut(rateById[d.id]); 
-        })
-     
+        var xAxis = d3.svg.axis()
+            .scale(x)
+            .orient("bottom")
+            .tickSize(13)
+            .tickValues(color.domain())
+            .tickFormat(function(d) {
+                return d >= 100 ? formatNumber(d) : null;
+            });
 
 
-  svg.append("path")
-      .datum(topojson.mesh(us, us.objects.states, function(a, b) { return a.id !== b.id; }))
-      .attr("class", "states")
-      .attr("d", path);
+        var projection = d3.geo.albersUsa()
+            .scale(2500)
+            .translate([960, 340]);
 
-      function mapMouseOver(obj){
-        var rate = round2Dec(obj.rate);
-        return tooltip.text(obj.county + " | " + rate ).style("visibility", "visible");
-      }
-      function mapMouseMove(obj){
-          var rate = round2Dec(obj.rate);
-        return tooltip.text(obj.county + " | " + rate).style("top", (event.pageY-10)+"px").style("left",(event.pageX+10)+"px");
-      }
-      function mapMouseOut(obj){
-         var rate = round2Dec(obj.rate);
-        return tooltip.text(obj.county+ " | " + rate).style("visibility", "hidden");
-      }
+        var path = d3.geo.path()
+            .projection(projection);
 
-      function round2Dec(rate){
-        return  Math.round(parseFloat(rate) * 10000) / 100 + "%";
-      }
-}
+        var svg = d3.select("body").append("svg")
+            .attr("width", width)
+            .attr("height", height);
 
-</script>
+        var tooltip = d3.select("body")
+            .append("div")
+            .style("position", "absolute")
+            .style("background-color", "rgba(255,255,255,0.8)")
+            .style("z-index", "10")
+            .style("visibility", "hidden")
+            .text("a simple tooltip");
+
+        var g = svg.append("g")
+            .attr("class", "key")
+            .attr("transform", "translate(440,40)");
+
+        g.selectAll("rect")
+            .data(color.range().map(function(d, i) {
+                return {
+                    x0: i ? x(color.domain()[i - 1]) : x.range()[0],
+                    x1: i < color.domain().length ? x(color.domain()[i]) : x.range()[1],
+                    z: d
+                };
+            }))
+            .enter().append("rect")
+            .attr("height", 8)
+            .attr("x", function(d) {
+                return d.x0;
+            })
+            .style("z-index", "10")
+            .attr("width", function(d) {
+                return d.x1 - d.x0;
+            })
+            .style("fill", function(d) {
+                return d.z;
+            });
+
+        g.call(xAxis).append("text")
+            .attr("class", "caption")
+            .attr("y", -6)
+            .style("z-index", "10")
+            .text("Population per square mile");
+
+        queue()
+            .defer(d3.json, "us.json")
+            .defer(d3.tsv, "unemployment.tsv")
+            .await(ready);
+
+        function ready(error, us, unemployment) {
+            if (error) throw error;
+
+            var rateById = {};
+
+            unemployment.forEach(function(d) {
+                rateById[d.id] = {
+                    rate: +d.rate,
+                    county: d.county
+                }
+            });
+
+            svg.append("g")
+                .attr("class", "counties")
+                .selectAll("path")
+                .data(topojson.feature(us, us.objects.counties).features)
+                .enter().append("path")
+                .attr("d", path)
+                .attr("data-hover", function(d) {
+                    return rateById[d.id] && rateById[d.id].county;
+                })
+                .style("fill", function(d) {
+                    return color(rateById[d.id] && rateById[d.id].rate);
+                })
+                .on("mouseover", function(d) {
+                    return mapMouseOver(rateById[d.id]);
+                })
+                .on("mousemove", function(d) {
+                    return mapMouseMove(rateById[d.id]);
+                })
+                .on("mouseout", function(d) {
+                    return mapMouseOut(rateById[d.id]);
+                })
+
+
+
+            svg.append("path")
+                .datum(topojson.mesh(us, us.objects.states, function(a, b) {
+                    return a.id !== b.id;
+                }))
+                .attr("class", "states")
+                .attr("d", path);
+
+            function mapMouseOver(obj) {
+                var rate = round2Dec(obj.rate);
+                return tooltip.text(obj.county + " | " + rate).style("visibility", "visible");
+            }
+
+            function mapMouseMove(obj) {
+                var rate = round2Dec(obj.rate);
+                return tooltip.text(obj.county + " | " + rate).style("top", (event.pageY - 10) + "px").style("left", (event.pageX + 10) + "px");
+            }
+
+            function mapMouseOut(obj) {
+                var rate = round2Dec(obj.rate);
+                return tooltip.text(obj.county + " | " + rate).style("visibility", "hidden");
+            }
+
+            function round2Dec(rate) {
+                return Math.round(parseFloat(rate) * 10000) / 100 + "%";
+            }
+        }
+    </script>
